@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cat Runner Game</title>
+<style>
+    body {
+        margin: 0;
+        font-family: 'Segoe UI', sans-serif;
+        background: #f4f4f4;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        height: 100vh;
+    }
+    h1 {
+        font-size: 22px;
+        margin: 10px 0 0;
+    }
+    #game-container {
+        position: relative;
+        width: 800px;
+        height: 200px;
+        background: white;
+        border: 2px solid #333;
+        overflow: hidden;
+    }
+    #cat {
+        position: absolute;
+        bottom: 20px;
+        left: 50px;
+        width: 40px;
+        height: 40px;
+        background: url('https://upload.wikimedia.org/wikipedia/commons/3/3a/Cat03.jpg') center/cover no-repeat;
+        border-radius: 5px;
+    }
+
+    /* Base obstacle style */
+    .obstacle {
+        position: absolute;
+        display: flex;
+        justify-content: center;
+        align-items: flex-end;
+    }
+
+    /* Bush Styles */
+    .big-bush, .small-bush {
+        background: linear-gradient(#2ecc71, #27ae60);
+        border-radius: 20px 20px 0 0;
+        box-shadow: inset -5px -5px 0 rgba(0,0,0,0.2);
+    }
+    .big-bush { width: 50px; height: 40px; }
+    .small-bush { width: 30px; height: 25px; }
+
+    /* Mushroom Styles */
+    .mushroom {
+        width: 30px;
+        height: 35px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    .mushroom-cap {
+        width: 30px;
+        height: 20px;
+        background: red;
+        border-radius: 15px 15px 0 0;
+        position: relative;
+    }
+    .mushroom-cap::before,
+    .mushroom-cap::after {
+        content: "";
+        position: absolute;
+        background: white;
+        border-radius: 50%;
+    }
+    .mushroom-cap::before { width: 6px; height: 6px; top: 5px; left: 5px; }
+    .mushroom-cap::after { width: 5px; height: 5px; top: 8px; right: 6px; }
+    .mushroom-stem {
+        width: 12px;
+        height: 15px;
+        background: #f5deb3;
+        border-radius: 2px;
+    }
+
+    /* Flower Styles */
+    .flower {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin: 0 3px;
+    }
+    .petals {
+        position: relative;
+        width: 28px;
+        height: 28px;
+    }
+    .petal {
+        width: 12px;
+        height: 12px;
+        background: pink;
+        border-radius: 50%;
+        position: absolute;
+    }
+    .petal:nth-child(1) { top: 0; left: 8px; }
+    .petal:nth-child(2) { bottom: 0; left: 8px; }
+    .petal:nth-child(3) { left: 0; top: 8px; }
+    .petal:nth-child(4) { right: 0; top: 8px; }
+    .center {
+        width: 10px;
+        height: 10px;
+        background: yellow;
+        border-radius: 50%;
+        position: absolute;
+        top: 9px;
+        left: 9px;
+    }
+    .stem {
+        width: 4px;
+        height: 12px;
+        background: green;
+        position: relative;
+    }
+    .leaf {
+        width: 6px;
+        height: 4px;
+        background: green;
+        position: absolute;
+        border-radius: 2px;
+    }
+    .leaf.left { left: -6px; top: 4px; }
+    .leaf.right { right: -6px; top: 4px; }
+
+    #score-board {
+        width: 800px;
+        display: flex;
+        justify-content: space-between;
+        font-size: 18px;
+        margin: 5px 0;
+    }
+    #message {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 20px;
+        background: rgba(255,255,255,0.8);
+        padding: 8px 14px;
+        border-radius: 8px;
+        border: 1px solid #aaa;
+    }
+    #speed-toggle {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        background: #333;
+        color: white;
+        padding: 5px 10px;
+        font-size: 14px;
+        cursor: pointer;
+        border-radius: 5px;
+        user-select: none;
+    }
+</style>
+</head>
+<body>
+
+<h1>🐱 Cat Runner</h1>
+<div id="score-board">
+    <div>Score: <span id="score">0</span></div>
+    <div>High Score: <span id="high-score">0</span></div>
+</div>
+<div id="game-container">
+    <div id="cat"></div>
+    <div id="message">Press any key to start, ↑ to jump</div>
+    <div id="speed-toggle">Speed: Slow 🐢</div>
+</div>
+
+<script>
+    const cat = document.getElementById("cat");
+    const gameContainer = document.getElementById("game-container");
+    const scoreDisplay = document.getElementById("score");
+    const highScoreDisplay = document.getElementById("high-score");
+    const message = document.getElementById("message");
+    const speedToggle = document.getElementById("speed-toggle");
+
+    let isJumping = false;
+    let position = 20;
+    let score = 0;
+    let highScore = localStorage.getItem("catHighScore") || 0;
+    highScoreDisplay.textContent = highScore;
+    let gameInterval;
+    let isGameOver = false;
+    let gameStarted = false;
+    let obstacleSpeed = 5;
+    let spawnMin = 1000;
+    let spawnMax = 4000;
+
+    function startGame() {
+        message.style.display = "none";
+        if (gameInterval) return; 
+        isGameOver = false;
+        score = 0;
+        scoreDisplay.textContent = score;
+
+        gameInterval = setInterval(() => {
+            score++;
+            scoreDisplay.textContent = score;
+        }, 100);
+
+        spawnObstacle();
+    }
+
+    function jump() {
+        if (isJumping) return;
+        isJumping = true;
+        let upTime = setInterval(() => {
+            if (position >= 120) {
+                clearInterval(upTime);
+                let downTime = setInterval(() => {
+                    if (position <= 20) {
+                        clearInterval(downTime);
+                        isJumping = false;
+                    }
+                    position -= 5;
+                    cat.style.bottom = position + "px";
+                }, 20);
+            }
+            position += 5;
+            cat.style.bottom = position + "px";
+        }, 20);
+    }
+
+    function spawnObstacle() {
+        if (isGameOver) return;
+
+        let obstacle = document.createElement("div");
+        let types = ["big-bush", "small-bush", "mushroom", "flower"];
+        let type = types[Math.floor(Math.random() * types.length)];
+        obstacle.classList.add("obstacle");
+        obstacle.style.bottom = "20px";
+
+        if (type === "mushroom") {
+            obstacle.classList.add("mushroom");
+            let cap = document.createElement("div");
+            cap.classList.add("mushroom-cap");
+            let stem = document.createElement("div");
+            stem.classList.add("mushroom-stem");
+            obstacle.appendChild(cap);
+            obstacle.appendChild(stem);
+        } 
+        else if (type === "flower") {
+            let bouquet = Math.random() < 0.4; // 40% chance of bouquet
+            let flowerCount = bouquet ? 2 : 1;
+            for (let i = 0; i < flowerCount; i++) {
+                let flower = document.createElement("div");
+                flower.classList.add("flower");
+
+                let petals = document.createElement("div");
+                petals.classList.add("petals");
+                for (let p = 0; p < 4; p++) {
+                    let petal = document.createElement("div");
+                    petal.classList.add("petal");
+                    petals.appendChild(petal);
+                }
+                let center = document.createElement("div");
+                center.classList.add("center");
+                petals.appendChild(center);
+
+                let stem = document.createElement("div");
+                stem.classList.add("stem");
+                let leafLeft = document.createElement("div");
+                leafLeft.classList.add("leaf", "left");
+                let leafRight = document.createElement("div");
+                leafRight.classList.add("leaf", "right");
+                stem.appendChild(leafLeft);
+                stem.appendChild(leafRight);
+
+                flower.appendChild(petals);
+                flower.appendChild(stem);
+                obstacle.appendChild(flower);
+            }
+        } 
+        else {
+            obstacle.classList.add(type);
+        }
+
+        obstacle.style.left = gameContainer.offsetWidth + "px";
+        gameContainer.appendChild(obstacle);
+
+        let moveInterval = setInterval(() => {
+            let obstacleRect = obstacle.getBoundingClientRect();
+            let catRect = cat.getBoundingClientRect();
+
+            if (
+                obstacleRect.left < catRect.right &&
+                obstacleRect.right > catRect.left &&
+                obstacleRect.top < catRect.bottom &&
+                obstacleRect.bottom > catRect.top
+            ) {
+                gameOver();
+                clearInterval(moveInterval);
+            }
+
+            let obstacleLeft = parseInt(obstacle.style.left);
+            if (obstacleLeft <= -100) {
+                obstacle.remove();
+                clearInterval(moveInterval);
+            }
+
+            obstacle.style.left = obstacleLeft - obstacleSpeed + "px";
+        }, 20);
+
+        let nextSpawn = Math.random() * (spawnMax - spawnMin) + spawnMin;
+        setTimeout(spawnObstacle, nextSpawn);
+    }
+
+    function gameOver() {
+        clearInterval(gameInterval);
+        gameInterval = null;
+        isGameOver = true;
+
+        if (score > highScore) {
+            highScore = score;
+            localStorage.setItem("catHighScore", highScore);
+        }
+        highScoreDisplay.textContent = highScore;
+
+        message.innerHTML = "Game Over! Press any key to restart 🐾";
+        message.style.display = "block";
+    }
+
+    speedToggle.addEventListener("click", () => {
+        if (obstacleSpeed === 5) {
+            obstacleSpeed = 8;
+            speedToggle.textContent = "Speed: Fast 🚀";
+        } else {
+            obstacleSpeed = 5;
+            speedToggle.textContent = "Speed: Slow 🐢";
+        }
+    });
+
+    document.addEventListener("keydown", (e) => {
+        if (!gameStarted) {
+            gameStarted = true;
+            startGame();
+        } else if (isGameOver) {
+            document.location.reload();
+        } else if (e.key === "ArrowUp") {
+            jump();
+        }
+    });
+</script>
+
+</body>
+</html>
