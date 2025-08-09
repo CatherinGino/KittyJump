@@ -2,6 +2,8 @@
 
 A colorful, fun, and minimalist twist on the **Google Chrome Dino Game** — but instead of a dinosaur, you guide a **cute little cat** 🐾 to jump over **bushes 🌿, mushrooms 🍄, and flowers 🌸** while chasing your highest score.
 
+Do Check it out: https://catheringino.github.io/KittyJump/
+
 ---
 
 ## 🎯 Inspiration
